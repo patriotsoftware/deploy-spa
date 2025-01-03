@@ -1,0 +1,115 @@
+name: Deploy SPA
+author: DevOps
+description: 'Build and deploy a SPA projects to S3.'
+
+inputs:
+  # Application Inputs
+  app-base-url:
+    description: 'Enter the base URL for the app. I.E. https://dev-static.patriotsoftware.com'
+    required: true
+  app-path:
+    description: 'Enter the path to the app.'
+    required: false
+    default: 'share'
+  app-dist-path:
+    description: 'Enter the path for the app dist directory. This is the artifact uploaded to S3.'
+    required: false
+    default: 'share/dist'
+  bucket-name:
+    description: 'Enter the S3 Bucket name to upload the artifacts to.'
+    required: true
+  additional-bucket-args:
+    description: 'Enter the path in the S3 Bucket to upload the artifacts to.'
+    required: false
+  cloudfront-distribution-id:
+    description: 'Enter the AWS CloudFront Distribution ID for the app.'
+    required: true
+  npm-run-command:
+    description: 'Enter the command to run with NPM. I.E. "npm run <npm-run-script>", "npm run build", "npm run build-dev"'
+    required: true
+  # Node Configuration
+  node-version:
+    description: 'The version of Node to set up.'
+    required: true
+  node-auth-token:
+    description: 'Supply the required Authentication token for the intended Node Registry.'
+    required: true
+  node-registry-url:
+    description: 'Enter the Node Registry URL to configure Node with.'
+    required: false
+    default: 'https://npm.pkg.github.com/SynergyDataSystems'
+  node-scope:
+    description: 'Enter the Node Registry URL to configure Node with.'
+    required: false
+    default: '@synergydatasystems'
+  # AWS Authentication Configuration
+  cognito-identity-pool-id:
+    description: 'Enter the AWS Cognito Identity Pool ID.'
+    required: true
+  aws-region:
+    description: 'Enter AWS Region to use.'
+    required: false
+    default: 'us-east-1'
+  cognito-audience:
+    description: 'Enter the Node Registry URL to configure Node with.'
+    required: false
+    default: 'cognito-identity.amazonaws.com'
+  aws-account-id:
+    description: 'Enter the AWS Account ID.'
+    required: true
+  cognito-set-in-environment:
+    description: 'Enable or disable the Cognito set-in-environment setting used for authentication.'
+    required: false
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Extract branch name
+      id: extract_branch
+      shell: bash
+      run: |
+        export UNESCAPED_BRANCH_NAME=${GITHUB_REF#refs/heads/}
+        echo "clean-branch=$(echo ${UNESCAPED_BRANCH_NAME} | sed 's/_//g' | tr '[:upper:]' '[:lower:]' | cut -c -38)" >> $GITHUB_OUTPUT
+
+    - name: Get Base URL and App Path
+      id: url
+      shell: bash
+      run: echo "app_endpoint=$(echo '${{ github.event.repository.name }}/${{ steps.extract_branch.outputs.clean-branch }}')"
+
+    - uses: actions/setup-node@v4
+      env:
+          NODE_AUTH_TOKEN: ${{ inputs.node-auth-token }}
+      with:
+        node-version: ${{ inputs.node-version }}
+        registry-url: ${{ inputs.node-registry-url }}
+        # Defaults to the user or organization that owns the workflow file
+        scope: ${{ inputs.node-scope }}
+
+    - name: Install Dependencies and Compile Code
+      shell: bash
+      run: |
+        cd ${{ inputs.app-path }}
+        npm install
+        npm run ${{ inputs.app-dist-path }}
+    
+    - name: Get Credentials from Amazon Cognito Identity
+      uses: patriotsoftware/cognito-idpool-auth@main
+      with:
+        cognito-identity-pool-id: ${{ inputs.cognito-identity-pool-id }}
+        aws-region: ${{ inputs.aws-region }}
+        audience: ${{ inputs.cognito-audience }}
+        aws-account-id: ${{ inputs.aws-account-id }}
+        set-in-environment: ${{ inputs.cognito-set-in-environment }}
+
+    - uses: patriotsoftware/publish-static-site@v1
+      with:
+        bucket_name: ${{ inputs.bucket-name }}
+        bucket_path: ${{ github.event.repository.name }}/${{ steps.extract_branch.outputs.clean-branch }}
+        distribution_id: ${{ inputs.cloudfront-distribution-id }}
+        app_path: ${{ inputs.app-dist-path }}
+        additional_bucket_args: ${{ inputs.additional-bucket-args }}
+    
+    - name: Application Endpoint
+      shell: bash
+      run: echo "${{ inputs.app-base-url }}/${{ github.event.repository.name }}/${{ steps.extract_branch.outputs.clean-branch }}/index.html"
