@@ -116,4 +116,11 @@ runs:
     
     - name: Application Endpoint
       shell: bash
-      run: echo "${{ inputs.app-base-url }}/${{ github.event.repository.name }}/${{ steps.extract_branch.outputs.clean-branch }}/${{ inputs.app-file }}"
+      run: |
+        if [[ -f ${{ inputs.app-path }}/vite.config.mts ]];
+          echo "${{ inputs.app-base-url }}/${{ github.event.repository.name }}/${{ steps.extract_branch.outputs.clean-branch }}/main.js"
+        elif [[ -f ${{ inputs.app-path }}/vite.config.ts ]];
+          echo "${{ inputs.app-base-url }}/${{ github.event.repository.name }}/${{ steps.extract_branch.outputs.clean-branch }}/index.html"
+        else
+          echo "Endpoint filename could not be determined. App base url: ${{ inputs.app-base-url }}/${{ github.event.repository.name }}/${{ steps.extract_branch.outputs.clean-branch }}"
+        fi
