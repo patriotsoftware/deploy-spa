@@ -2,7 +2,7 @@ name: Release New Action Version
 on: 
   push:
     branches:
-      - "main"
+      - "debug"
 
 jobs:
   release-action:

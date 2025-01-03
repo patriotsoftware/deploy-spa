@@ -91,7 +91,7 @@ runs:
       run: |
         cd ${{ inputs.app-path }}
         npm install
-        npm run ${{ inputs.app-dist-path }}
+        npm run ${{ inputs.npm-run-command }}
     
     - name: Get Credentials from Amazon Cognito Identity
       uses: patriotsoftware/cognito-idpool-auth@main
