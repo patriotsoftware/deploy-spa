@@ -15,6 +15,10 @@ inputs:
     description: 'Enter the path for the app dist directory. This is the artifact uploaded to S3.'
     required: false
     default: 'share/dist'
+  app-file:
+    description: 'Enter an overwrite for the filename used in the endpoint. Default is "index.html"'
+    required: false
+    default: index.html
   bucket-name:
     description: 'Enter the S3 Bucket name to upload the artifacts to.'
     required: true
@@ -112,4 +116,4 @@ runs:
     
     - name: Application Endpoint
       shell: bash
-      run: echo "${{ inputs.app-base-url }}/${{ github.event.repository.name }}/${{ steps.extract_branch.outputs.clean-branch }}/index.html"
+      run: echo "${{ inputs.app-base-url }}/${{ github.event.repository.name }}/${{ steps.extract_branch.outputs.clean-branch }}/${{ inputs.app-file }}"
